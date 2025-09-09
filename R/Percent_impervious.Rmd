@@ -33,9 +33,6 @@ full_data <-
 full_data <- tidyr::separate(full_data, gps, into = c("lat", "lon"), sep = ", ")
 full_data$lat <- as.numeric(full_data$lat)
 full_data$lon <- as.numeric(full_data$lon)
-
-full_data_no_na <- full_data[!(is.na(full_data$lat) | is.na(full_data$lon)), ]
-full_data_na <- full_data[(is.na(full_data$lat) | is.na(full_data$lon)), ]
 ```
 
 ## Get percent impervious - 2024
