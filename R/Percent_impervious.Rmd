@@ -1,0 +1,67 @@
+---
+title: "Get Percent Impervious"
+author: "Ava Hoffman"
+date: "2025-09-08"
+---
+
+The following code helps find the percent impervious surface associated with each set of GPS coordinates.
+
+Data are derived from the The Multi-Resolution Land Characteristics (MRLC) consortium, part of the U.S. Geological Survey (USGS):
+https://www.mrlc.gov/data?f%5B0%5D=category%3AFractional%20Impervious%20Surface
+
+## Install and load data
+
+```{r}
+# install.packages("devtools")
+devtools::install_github("avahoffman/urbanr")
+library(urbanr)
+
+snapshot <- "BioDIGS_sites_20250616.csv"
+
+full_data <-
+  read.csv(
+    paste0(
+      "https://raw.githubusercontent.com/FredHutch/GDSCNsoilsites/refs/heads/main/data/snapshots/",
+      snapshot
+    )
+  )
+```
+
+## Prepare data
+
+```{r}
+full_data <- tidyr::separate(full_data, gps, into = c("lat", "lon"), sep = ", ")
+full_data$lat <- as.numeric(full_data$lat)
+full_data$lon <- as.numeric(full_data$lon)
+
+full_data_no_na <- full_data[!(is.na(full_data$lat) | is.na(full_data$lon)), ]
+full_data_na <- full_data[(is.na(full_data$lat) | is.na(full_data$lon)), ]
+```
+
+## Get percent impervious - 2024
+
+```{r}
+# Batch query with multiple points
+# follow prompts from urbanr to make sure data is available!
+coords_df <- data.frame(
+  lat = full_data$lat,
+  lon = full_data$lon
+)
+coords_df_2024 <- get_pct_impervious(coords_df)
+```
+
+## Get percent impervious - 1988 for comparison
+
+```{r}
+coords_df_1988 <- get_pct_impervious(coords_df, edition = "Annual_NLCD_FctImp_1988_CU_C1V1.tif")
+```
+
+## Join everything
+
+```{r}
+full_data_impervious <- dplyr::left_join(full_data, dplyr::distinct(coords_df_1988), by = c("lat", "lon"))
+full_data_impervious <- dplyr::left_join(full_data_impervious, dplyr::distinct(coords_df_2024), by = c("lat", "lon"))
+
+readr::write_csv(full_data_impervious, "data/sites_pct_impervious.csv")
+```
+
