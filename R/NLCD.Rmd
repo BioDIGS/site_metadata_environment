@@ -76,14 +76,18 @@ Metadata and report can be found here : https://www.mrlc.gov/data/type/science-t
 
 ```{r}
 science_tree_canopy_cover_2023 <- get_nlcd(coords_df, tif_file = "science_tcc_conus_wgs84_v2023-5_20230101_20231231.tif")
+full_data_tcc <- dplyr::left_join(full_data, dplyr::distinct(science_tree_canopy_cover_2023), by = c("lat", "lon"))
+readr::write_csv(full_data_tcc, "data/science_tcc_conus_wgs84_v2023-5.csv")
 ```
 
-## Join everything
+## Get NLCD Tree Cover
+
+NLCD Tree Canopy Cover : https://www.mrlc.gov/data?f%5B0%5D=category%3ANLCD%20Tree%20Canopy%20Cover 
+
+Metadata and report can be found here : https://www.mrlc.gov/data/type/nlcd-tree-canopy-cover. NLCD Tree Canopy Cover (TCC) geospatial datasets with spatial resolutions of 30-meter.
 
 ```{r}
-full_data_nlcd <- dplyr::left_join(full_data, dplyr::distinct(science_tree_canopy_cover_2023), by = c("lat", "lon"))
-#full_data_nlcd <- dplyr::left_join(full_data_nlcd, dplyr::distinct(DF), by = c("lat", "lon"))
-
-readr::write_csv(full_data_nlcd, "data/nlcd.csv")
+science_tree_canopy_cover_2023 <- get_nlcd(coords_df, tif_file = "science_tcc_conus_wgs84_v2023-5_20230101_20231231.tif")
+full_data_tcc <- dplyr::left_join(full_data, dplyr::distinct(science_tree_canopy_cover_2023), by = c("lat", "lon"))
+readr::write_csv(full_data_tcc, "data/science_tcc_conus_wgs84_v2023-5.csv")
 ```
-
