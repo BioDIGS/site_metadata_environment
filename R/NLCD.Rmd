@@ -1,0 +1,89 @@
+---
+title: "Get NLCD Features"
+author: "Ava Hoffman"
+date: "2025-11-03"
+---
+
+The following code helps find NLCD land characteristics associated with each set of GPS coordinates.
+
+Data are derived from the The Multi-Resolution Land Characteristics (MRLC) consortium, part of the U.S. Geological Survey (USGS):
+Land cover : https://www.mrlc.gov/data?f%5B0%5D=category%3ALand%20Cover
+North American Land Change Monitoring System (NALCMS) Land cover : https://www.mrlc.gov/data?f%5B0%5D=category%3ANALCMS%20Land%20Cover
+NLCD Tree Canopy Cover : https://www.mrlc.gov/data?f%5B0%5D=category%3ANLCD%20Tree%20Canopy%20Cover 
+Science Tree Canopy Cover : https://www.mrlc.gov/data?f%5B0%5D=category%3AScience%20Tree%20Canopy%20Cover
+
+## Install and load data
+
+```{r}
+snapshot <- "BioDIGS_sites_20251103.csv"
+
+full_data <-
+  read.csv(
+    paste0(
+      "https://raw.githubusercontent.com/FredHutch/GDSCNsoilsites/refs/heads/main/data/snapshots/",
+      snapshot
+    )
+  )
+```
+
+## Prepare data
+
+```{r}
+full_data <- tidyr::separate(full_data, gps, into = c("lat", "lon"), sep = ", ")
+full_data$lat <- as.numeric(full_data$lat)
+full_data$lon <- as.numeric(full_data$lon)
+```
+
+## Get percent impervious - 2024
+
+```{r}
+# Prepare coordinates DF
+coords_df <- data.frame(
+  lat = full_data$lat,
+  lon = full_data$lon
+)
+```
+
+```{r}
+# Set up function to extract data
+get_nlcd <- function(latlon, tif_file) {
+  file_dir <- paste0("../large_files/", tif_file)
+  
+  r <- terra::rast(file_dir)
+  the_crs <- terra::crs(r)
+  
+  # Confirm data is formatted correctly
+  if (is.data.frame(latlon)) {
+    # Confirm column names for terra
+    if ("lat" %in% colnames(latlon) &
+        "lon" %in% colnames(latlon)) {
+      vals <- data.frame(lon = latlon$lon, lat = latlon$lat)
+      vals_terra <- terra::vect(vals, crs = "+proj=longlat", keepgeom = T)
+      extracted_vals <- terra::extract(r, terra::project(vals_terra, the_crs))
+      out <- cbind(vals, extracted_vals[, 2])
+      colnames(out)[3] <- colnames(extracted_vals[2])
+      return(out)
+    }
+  }
+}
+```
+
+## Get Tree Canopy Cover
+
+Science Tree Canopy Cover : https://www.mrlc.gov/data?f%5B0%5D=category%3AScience%20Tree%20Canopy%20Cover
+
+Metadata and report can be found here : https://www.mrlc.gov/data/type/science-tree-canopy-cover
+
+```{r}
+science_tree_canopy_cover_2023 <- get_nlcd(coords_df, tif_file = "science_tcc_conus_wgs84_v2023-5_20230101_20231231.tif")
+```
+
+## Join everything
+
+```{r}
+full_data_nlcd <- dplyr::left_join(full_data, dplyr::distinct(science_tree_canopy_cover_2023), by = c("lat", "lon"))
+#full_data_nlcd <- dplyr::left_join(full_data_nlcd, dplyr::distinct(DF), by = c("lat", "lon"))
+
+readr::write_csv(full_data_nlcd, "data/nlcd.csv")
+```
+
