@@ -4,6 +4,10 @@ author: "Ava Hoffman"
 date: "2025-11-03"
 ---
 
+```{r}
+library(tidyverse) # %>% and other functions
+```
+
 The following code helps find NLCD land characteristics associated with each set of GPS coordinates.
 
 Data are derived from the The Multi-Resolution Land Characteristics (MRLC) consortium, part of the U.S. Geological Survey (USGS):
@@ -11,6 +15,8 @@ Land cover : https://www.mrlc.gov/data?f%5B0%5D=category%3ALand%20Cover
 North American Land Change Monitoring System (NALCMS) Land cover : https://www.mrlc.gov/data?f%5B0%5D=category%3ANALCMS%20Land%20Cover
 NLCD Tree Canopy Cover : https://www.mrlc.gov/data?f%5B0%5D=category%3ANLCD%20Tree%20Canopy%20Cover 
 Science Tree Canopy Cover : https://www.mrlc.gov/data?f%5B0%5D=category%3AScience%20Tree%20Canopy%20Cover
+
+The following assumes the user has a directory at `../large_files/` containing the large .tif files. Some of these are in excess of 6GB.
 
 ## Install and load data
 
@@ -70,7 +76,7 @@ get_nlcd <- function(latlon, tif_file) {
 
 ## Get Tree Canopy Cover
 
-Science Tree Canopy Cover : https://www.mrlc.gov/data?f%5B0%5D=category%3AScience%20Tree%20Canopy%20Cover
+Science Tree Canopy Cover, download here : https://www.mrlc.gov/data?f%5B0%5D=category%3AScience%20Tree%20Canopy%20Cover
 
 Metadata and report can be found here : https://www.mrlc.gov/data/type/science-tree-canopy-cover
 
@@ -82,12 +88,94 @@ readr::write_csv(full_data_tcc, "data/science_tcc_conus_wgs84_v2023-5.csv")
 
 ## Get NLCD Tree Cover
 
-NLCD Tree Canopy Cover : https://www.mrlc.gov/data?f%5B0%5D=category%3ANLCD%20Tree%20Canopy%20Cover 
+NLCD Tree Canopy Cover, download here : https://www.mrlc.gov/data?f%5B0%5D=category%3ANLCD%20Tree%20Canopy%20Cover 
 
 Metadata and report can be found here : https://www.mrlc.gov/data/type/nlcd-tree-canopy-cover. NLCD Tree Canopy Cover (TCC) geospatial datasets with spatial resolutions of 30-meter.
 
 ```{r}
-science_tree_canopy_cover_2023 <- get_nlcd(coords_df, tif_file = "science_tcc_conus_wgs84_v2023-5_20230101_20231231.tif")
-full_data_tcc <- dplyr::left_join(full_data, dplyr::distinct(science_tree_canopy_cover_2023), by = c("lat", "lon"))
-readr::write_csv(full_data_tcc, "data/science_tcc_conus_wgs84_v2023-5.csv")
+nlcd_tree_canopy_cover_2023 <- get_nlcd(coords_df, tif_file = "nlcd_tcc_conus_wgs84_v2023-5_20230101_20231231.tif")
+full_data_nlcd_tcc <- dplyr::left_join(full_data, dplyr::distinct(nlcd_tree_canopy_cover_2023), by = c("lat", "lon"))
+readr::write_csv(full_data_nlcd_tcc, "data/nlcd_tcc_conus_wgs84_v2023-5.csv")
 ```
+
+## North American Land Cover, 2020 (Landsat, 30m)
+
+This map of North American land cover provides a harmonized view of the physical cover of Earth’s surface across the continent at a spatial resolution of 30 meters, based on Landsat satellite imagery for Canada, Mexico, and the United States. Download here: https://www.cec.org/north-american-environmental-atlas/land-cover-30m-2020/
+
+```{r}
+CEC_landcover_2020 <- get_nlcd(coords_df, tif_file = "NA_NALCMS_landcover_2020v2_30m.tif")
+
+# Replace with actual values, see the site's metadata for this key! https://www.cec.org/files/atlas_layers/1_terrestrial_ecosystems/1_01_0_land_cover_2020_30m/metadata.zip
+CEC_landcover_2020 <-
+  CEC_landcover_2020 %>%
+  mutate(
+    landcover_text = as.character(NA_NALCMS_landcover_2020v2_30m),
+    landcover_text = case_when(
+      landcover_text == "1" ~ "Temperate or sub-polar needleleaf forest",
+      landcover_text == "2" ~ "Sub-polar taiga needleleaf forest",
+      landcover_text == "3" ~ "Tropical or sub-tropical broadleaf evergreen forest",
+      landcover_text == "4" ~ "Tropical or sub-tropical broadleaf deciduous forest",
+      landcover_text == "5" ~ "Temperate or sub-polar broadleaf deciduous forest",
+      landcover_text == "6" ~ "Mixed forest",
+      landcover_text == "7" ~ "Tropical or sub-tropical shrubland",
+      landcover_text == "8" ~ "Temperate or sub-polar shrubland",
+      landcover_text == "9" ~ "Tropical or sub-tropical grassland",
+      landcover_text == "10" ~ "Temperate or sub-polar grassland",
+      landcover_text == "11" ~ "Sub-polar or polar shrubland-lichen-moss",
+      landcover_text == "12" ~ "Sub-polar or polar grassland-lichen-moss",
+      landcover_text == "13" ~ "Sub-polar or polar barren-lichen-moss",
+      landcover_text == "14" ~ "Wetland",
+      landcover_text == "15" ~ "Cropland",
+      landcover_text == "16" ~ "Barren lands, where vegetation accounts for less than 10 percent of total cover",
+      landcover_text == "17" ~ "Urban and built-up",
+      landcover_text == "18" ~ "Water, generally with less than 25 percent cover of non-water cover types",
+      landcover_text == "19" ~ "Snow and ice",
+      TRUE ~ landcover_text
+    )
+  )
+
+full_data_cec_landcover <- dplyr::left_join(full_data, dplyr::distinct(CEC_landcover_2020), by = c("lat", "lon"))
+readr::write_csv(full_data_cec_landcover, "data/NA_NALCMS_landcover_2020.csv")
+```
+
+## NLCD Land Cover class
+
+Land cover, download here : https://www.mrlc.gov/data?f%5B0%5D=category%3ALand%20Cover
+
+The primary NLCD land cover product represents the predominant state of the surface within the mapping year with respect to broad categories of natural and anthropogenic surface cover types. See legend and metadata info here: https://www.mrlc.gov/data/type/land-cover.
+
+```{r}
+NLCD_landcover_2024 <- get_nlcd(coords_df, tif_file = "Annual_NLCD_LndCov_2024_CU_C1V1.tif")
+
+# Replace with actual values, see the site's metadata for this key! https://www.mrlc.gov/data/type/land-cover
+NLCD_landcover_2024 <-
+  NLCD_landcover_2024 %>%
+  mutate(
+    landcover_text = as.character(Annual_NLCD_LndCov_2024_CU_C1V1),
+    landcover_text = case_when(
+      landcover_text == "11" ~ "Open Water",
+      landcover_text == "12" ~ "Perennial Ice/Snow",
+      landcover_text == "21" ~ "Developed, Open Space",
+      landcover_text == "22" ~ "Developed, Low Intensity",
+      landcover_text == "23" ~ "Developed, Medium Intensity",
+      landcover_text == "24" ~ "Developed, High Intensity",
+      landcover_text == "31" ~ "Barren Land (Rock/Sand/Clay)",
+      landcover_text == "41" ~ "Deciduous Forest",
+      landcover_text == "42" ~ "Evergreen Forest",
+      landcover_text == "43" ~ "Mixed Forest",
+      landcover_text == "52" ~ "Shrub/Scrub",
+      landcover_text == "71" ~ "Grassland/Herbaceous",
+      landcover_text == "81" ~ "Pasture/Hay",
+      landcover_text == "82" ~ "Cultivated Crops",
+      landcover_text == "90" ~ "Woody Wetlands",
+      landcover_text == "95" ~ "Emergent Herbaceous Wetlands",
+      TRUE ~ landcover_text
+    )
+  )
+
+
+
+full_data_NLCD_landcover_2024 <- dplyr::left_join(full_data, dplyr::distinct(NLCD_landcover_2024), by = c("lat", "lon"))
+readr::write_csv(full_data_NLCD_landcover_2024, "data/NLCD_LndCov_2024.csv")
+```
+
