@@ -40,7 +40,7 @@ full_data$lat <- as.numeric(full_data$lat)
 full_data$lon <- as.numeric(full_data$lon)
 ```
 
-## Get percent impervious - 2024
+## Get coords and NLCS attributes
 
 ```{r}
 # Prepare coordinates DF
@@ -80,6 +80,8 @@ Science Tree Canopy Cover, download here : https://www.mrlc.gov/data?f%5B0%5D=ca
 
 Metadata and report can be found here : https://www.mrlc.gov/data/type/science-tree-canopy-cover
 
+These are the raw, direct outputs from the random forest models before any post-processing is applied.
+
 ```{r}
 science_tree_canopy_cover_2023 <- get_nlcd(coords_df, tif_file = "science_tcc_conus_wgs84_v2023-5_20230101_20231231.tif")
 full_data_tcc <- dplyr::left_join(full_data, dplyr::distinct(science_tree_canopy_cover_2023), by = c("lat", "lon"))
@@ -91,6 +93,8 @@ readr::write_csv(full_data_tcc, "data/science_tcc_conus_wgs84_v2023-5.csv")
 NLCD Tree Canopy Cover, download here : https://www.mrlc.gov/data?f%5B0%5D=category%3ANLCD%20Tree%20Canopy%20Cover 
 
 Metadata and report can be found here : https://www.mrlc.gov/data/type/nlcd-tree-canopy-cover. NLCD Tree Canopy Cover (TCC) geospatial datasets with spatial resolutions of 30-meter.
+
+This is the final, post-processed product that undergoes several filtering steps.
 
 ```{r}
 nlcd_tree_canopy_cover_2023 <- get_nlcd(coords_df, tif_file = "nlcd_tcc_conus_wgs84_v2023-5_20230101_20231231.tif")
