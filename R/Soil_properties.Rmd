@@ -1,0 +1,153 @@
+---
+title: "Get Soil Properties"
+author: "Ava Hoffman"
+date: "2025-11-03"
+---
+
+```{r}
+library(tidyverse) # %>% and other functions
+library(sf)
+```
+---
+
+The following come from Natural Resource Conservation Service, US Department of Agriculture. Data can be downloaded by state here: https://nrcs.app.box.com/v/soils/folder/233398887779?page=2
+
+There is a fair amount of work to determine which datasets and metadata to use. These have been helpful:
+
+Data dictionary: https://www.nrcs.usda.gov/sites/default/files/2022-08/SSURGO-Metadata-Table-Column-Descriptions-Report.pdf
+Column types and units: https://www.nrcs.usda.gov/sites/default/files/2022-08/SSURGO-Metadata-Tables-and-Columns-Report.pdf
+Manually checking data: https://websoilsurvey.nrcs.usda.gov/app/WebSoilSurvey.aspx 
+
+The following assumes the user has a directory at `../large_files/` containing the large files.
+
+## Load data
+
+```{r}
+snapshot <- "BioDIGS_sites_20251103.csv"
+
+full_data <-
+  read.csv(
+    paste0(
+      "https://raw.githubusercontent.com/FredHutch/GDSCNsoilsites/refs/heads/main/data/snapshots/",
+      snapshot
+    )
+  )
+```
+
+## Prepare data
+
+```{r}
+full_data <- tidyr::separate(full_data, gps, into = c("lat", "lon"), sep = ", ")
+full_data$lat <- as.numeric(full_data$lat)
+full_data$lon <- as.numeric(full_data$lon)
+```
+
+## Get state in the US
+
+```{r}
+# Data is quite large so this saves some time
+full_data <- tidyr::separate(full_data, origin, into = c("city", "state"), sep = ", ", remove = FALSE)
+```
+
+## Get soil survey data
+
+```{r}
+# Prepare coordinates DF
+coords_df <- data.frame(
+  state = full_data$state,
+  site_name = full_data$site_name,
+  lat = full_data$lat,
+  lon = full_data$lon,
+  Lat = full_data$lat,
+  Lon = full_data$lon
+)
+```
+
+```{r}
+# Set up function to extract data
+get_soil_survey <- function(state, coords_df) {
+  # Contains polygons of soil map units (shapes)
+  mapunits <- read_sf(paste0(
+    "../large_files/gSSURGO_",
+    state,
+    ".gdb/a00000052.gdbtable"
+  ))
+  
+  coords_df_state <- coords_df[coords_df$state == state, ]
+  points_sf <- st_as_sf(coords_df_state,
+                        coords = c("Lon", "Lat"),
+                        crs = "+proj=longlat +datum=WGS84")
+  points_sf <- st_transform(points_sf, st_crs(mapunits))
+  points_sf_joined <- st_join(points_sf, mapunits, join = st_within) # takes a while!
+  
+  # Links map units to soil properties
+  mapunits_components <- read_sf(paste0(
+    "../large_files/gSSURGO_",
+    state,
+    ".gdb/a00000061.gdbtable"
+  ))
+  
+  # Get the soil properties table
+  soil_properties <- read_sf(paste0(
+    "../large_files/gSSURGO_",
+    state,
+    ".gdb/a0000000f.gdbtable"
+  ))
+  
+  points_sf_joined_soil <- 
+    points_sf_joined %>% 
+    left_join(mapunits_components, by = c("MUKEY" = "mukey")) %>% 
+    left_join(soil_properties)
+  
+  soil_cleaned <- points_sf_joined_soil %>% select(
+    state,
+    site_name,
+    lat,
+    lon,
+    AREASYMBOL,
+    MUSYM,
+    MUKEY,
+    cokey,
+    hzname,
+    hzdept_r,
+    hzdepb_r,
+    sandtotal_r,
+    silttotal_r,
+    claytotal_r,
+    om_r
+  )
+  
+  return(soil_cleaned)
+}
+```
+
+## Get Maryland Data
+
+```{r}
+soil_survey_out <- get_soil_survey("MD", coords_df)
+full_data_soil_md <- dplyr::left_join(full_data, dplyr::distinct(soil_survey_out), by = c("lat", "lon", "state", "site_name")) %>% filter(state == "MD")
+readr::write_csv(full_data_soil_md, "data/gSSURGO_MD.csv")
+```
+
+## Get Virginia Data
+
+```{r}
+soil_survey_out <- get_soil_survey("VA", coords_df)
+full_data_soil_va <- dplyr::left_join(full_data, dplyr::distinct(soil_survey_out), by = c("lat", "lon", "state", "site_name")) %>% filter(state == "VA")
+readr::write_csv(full_data_soil_va, "data/gSSURGO_VA.csv")
+```
+
+# Alternative data (FAO)
+
+The following code helps find Soil Organic Carbon associated with each set of GPS coordinates.
+
+Data are derived from the The Global Soil Organic Carbon Map v1.5 (GSOC), a product of GloSIS (Global Soil Information System) organization that is part of the Food and Agriculture Organization of the United Nations (FAO).
+
+This data is from version 1.5, published in 2018.
+
+Metadata/report can be found here: https://openknowledge.fao.org/server/api/core/bitstreams/c3ccec0d-fe75-49b7-9a4c-ee0a8777fed9/content
+
+Data can be downloaded here: https://data.apps.fao.org/catalog//iso/7730e747-eb73-49c9-bfe6-84ebae718743 
+
+Spatial scale is at 1km resolution and depth is 0-30cm. In the USA, SOC analysis method is primarily dry combustion and is derived from Natural Resource Conservation Service, US Department of Agriculture.
+
