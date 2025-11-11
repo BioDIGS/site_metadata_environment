@@ -97,7 +97,7 @@ get_soil_survey <- function(state, coords_df) {
   points_sf_joined_soil <- 
     points_sf_joined %>% 
     left_join(mapunits_components, by = c("MUKEY" = "mukey")) %>% 
-    left_join(soil_properties)
+    left_join(soil_properties, relationship = "many-to-many")
   
   soil_cleaned <- points_sf_joined_soil %>% select(
     state,
