@@ -10,7 +10,11 @@ library(sf)
 ```
 ---
 
-The following come from Natural Resource Conservation Service, US Department of Agriculture. Data can be downloaded by state here: https://nrcs.app.box.com/v/soils/folder/233398887779?page=2
+The following come from Natural Resource Conservation Service, US Department of Agriculture. Gridded SSURGO (gSSURGO) is similar to the standard USDA-NRCS Soil Survey Geographic (SSURGO) Database product but in the format of an Environmental Systems Research Institute, Inc. (ESRI®) file geodatabase.
+
+Landing page: https://www.nrcs.usda.gov/resources/data-and-reports/gridded-soil-survey-geographic-gssurgo-database 
+
+Data can be downloaded by state here: https://nrcs.app.box.com/v/soils/folder/233398887779
 
 There is a fair amount of work to determine which datasets and metadata to use. These have been helpful:
 
@@ -23,7 +27,7 @@ The following assumes the user has a directory at `../large_files/` containing t
 ## Load data
 
 ```{r}
-snapshot <- "BioDIGS_sites_20251103.csv"
+snapshot <- "BioDIGS_sites_20251111.csv"
 
 full_data <-
   read.csv(
@@ -46,7 +50,13 @@ full_data$lon <- as.numeric(full_data$lon)
 
 ```{r}
 # Data is quite large so this saves some time
-full_data <- tidyr::separate(full_data, origin, into = c("city", "state"), sep = ", ", remove = FALSE)
+full_data <- tidyr::separate(
+  full_data,
+  origin,
+  into = c("city", "state"),
+  sep = ", ",
+  remove = FALSE
+)
 ```
 
 ## Get soil survey data
@@ -81,11 +91,20 @@ get_soil_survey <- function(state, coords_df) {
   points_sf_joined <- st_join(points_sf, mapunits, join = st_within) # takes a while!
   
   # Links map units to soil properties
-  mapunits_components <- read_sf(paste0(
-    "../large_files/gSSURGO_",
-    state,
-    ".gdb/a00000061.gdbtable"
-  ))
+  if (state %in% c("SC")) {
+    # South Carolina's spatial tables are labeled a bit differently
+    mapunits_components <- read_sf(paste0(
+      "../large_files/gSSURGO_",
+      state,
+      ".gdb/a00000063.gdbtable"
+    ))
+  } else {
+    mapunits_components <- read_sf(paste0(
+      "../large_files/gSSURGO_",
+      state,
+      ".gdb/a00000061.gdbtable"
+    ))
+  }
   
   # Get the soil properties table
   soil_properties <- read_sf(paste0(
@@ -94,9 +113,9 @@ get_soil_survey <- function(state, coords_df) {
     ".gdb/a0000000f.gdbtable"
   ))
   
-  points_sf_joined_soil <- 
-    points_sf_joined %>% 
-    left_join(mapunits_components, by = c("MUKEY" = "mukey")) %>% 
+  points_sf_joined_soil <-
+    points_sf_joined %>%
+    left_join(mapunits_components, by = c("MUKEY" = "mukey")) %>%
     left_join(soil_properties, relationship = "many-to-many")
   
   soil_cleaned <- points_sf_joined_soil %>% select(
@@ -125,7 +144,14 @@ get_soil_survey <- function(state, coords_df) {
 
 ```{r}
 soil_survey_out <- get_soil_survey("MD", coords_df)
-full_data_soil_md <- dplyr::left_join(full_data, dplyr::distinct(soil_survey_out), by = c("lat", "lon", "state", "site_name")) %>% filter(state == "MD")
+full_data_soil_md <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "MD") %>%
+  filter(public_ok == TRUE)
 readr::write_csv(full_data_soil_md, "data/gSSURGO_MD.csv")
 ```
 
@@ -133,8 +159,143 @@ readr::write_csv(full_data_soil_md, "data/gSSURGO_MD.csv")
 
 ```{r}
 soil_survey_out <- get_soil_survey("VA", coords_df)
-full_data_soil_va <- dplyr::left_join(full_data, dplyr::distinct(soil_survey_out), by = c("lat", "lon", "state", "site_name")) %>% filter(state == "VA")
+full_data_soil_va <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "VA") %>%
+  filter(public_ok == TRUE)
 readr::write_csv(full_data_soil_va, "data/gSSURGO_VA.csv")
+```
+
+## Get North Carolina Data
+
+```{r}
+soil_survey_out <- get_soil_survey("NC", coords_df)
+full_data_soil_nc <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "NC") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_nc, "data/gSSURGO_NC.csv")
+```
+
+## Get South Carolina Data
+
+```{r}
+# There are actually some georgia sites listed under SC, so filter these out. They won't show up under SC's geometry.
+coords_df_sc <-
+  coords_df %>%
+  filter(site_name != "Keysville, GA" &
+           site_name != "Augusta, GA")
+soil_survey_out <- get_soil_survey("SC", coords_df_sc)
+full_data_soil_sc <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "SC" &
+           site_name != "Keysville, GA" &
+           site_name != "Augusta, GA")  %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_sc, "data/gSSURGO_SC.csv")
+```
+
+## Get Colorado Data
+
+```{r}
+soil_survey_out <- get_soil_survey("CO", coords_df)
+full_data_soil_co <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "CO") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_co, "data/gSSURGO_CO.csv")
+```
+
+## Get Texas Data
+
+```{r}
+soil_survey_out <- get_soil_survey("TX", coords_df)
+full_data_soil_tx <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "TX") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_tx, "data/gSSURGO_TX.csv")
+```
+
+## Get California Data
+
+```{r}
+
+```
+
+## Get Georgia Data
+
+```{r}
+# There are actually some georgia sites listed under SC, so add these back. They won't show up otherwise.
+
+```
+
+## Get New York Data
+
+```{r}
+
+```
+
+## Get New Jersey Data
+
+```{r}
+
+```
+
+## Get Minnesota Data
+
+```{r}
+
+```
+
+## Get Tennessee Data
+
+```{r}
+
+```
+
+## Get North Dakota Data
+
+```{r}
+
+```
+
+## Get Oklahoma Data
+
+```{r}
+
+```
+
+## Get Washington Data
+
+```{r}
+
+```
+
+## Get Arizona Data
+
+```{r}
+
 ```
 
 # Alternative data (FAO)
