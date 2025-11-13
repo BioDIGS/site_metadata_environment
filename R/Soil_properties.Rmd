@@ -44,6 +44,13 @@ full_data <-
 full_data <- tidyr::separate(full_data, gps, into = c("lat", "lon"), sep = ", ")
 full_data$lat <- as.numeric(full_data$lat)
 full_data$lon <- as.numeric(full_data$lon)
+
+full_data <- full_data %>% 
+  mutate(origin = case_when(
+    site_name == "Augusta, GA" ~ "Augusta, GA",
+    site_name == "Keysville, GA" ~ "Keysville, GA",
+    TRUE ~ origin
+  ))
 ```
 
 ## Get state in the US
@@ -91,8 +98,8 @@ get_soil_survey <- function(state, coords_df) {
   points_sf_joined <- st_join(points_sf, mapunits, join = st_within) # takes a while!
   
   # Links map units to soil properties
-  if (state %in% c("SC")) {
-    # South Carolina's spatial tables are labeled a bit differently
+  if (state %in% c("SC", "NJ", "ND")) {
+    # New Jersey, North Dakota, and South Carolina's spatial tables are labeled a bit differently
     mapunits_components <- read_sf(paste0(
       "../large_files/gSSURGO_",
       state,
@@ -188,11 +195,6 @@ readr::write_csv(full_data_soil_nc, "data/gSSURGO_NC.csv")
 ## Get South Carolina Data
 
 ```{r}
-# There are actually some georgia sites listed under SC, so filter these out. They won't show up under SC's geometry.
-coords_df_sc <-
-  coords_df %>%
-  filter(site_name != "Keysville, GA" &
-           site_name != "Augusta, GA")
 soil_survey_out <- get_soil_survey("SC", coords_df_sc)
 full_data_soil_sc <-
   dplyr::left_join(
@@ -200,9 +202,7 @@ full_data_soil_sc <-
     dplyr::distinct(soil_survey_out),
     by = c("lat", "lon", "state", "site_name")
   ) %>%
-  filter(state == "SC" &
-           site_name != "Keysville, GA" &
-           site_name != "Augusta, GA")  %>%
+  filter(state == "SC")  %>%
   filter(public_ok == TRUE)
 readr::write_csv(full_data_soil_sc, "data/gSSURGO_SC.csv")
 ```
@@ -240,62 +240,166 @@ readr::write_csv(full_data_soil_tx, "data/gSSURGO_TX.csv")
 ## Get California Data
 
 ```{r}
-
+soil_survey_out <- get_soil_survey("CA", coords_df)
+full_data_soil_ca <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "CA") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_ca, "data/gSSURGO_CA.csv")
 ```
 
 ## Get Georgia Data
 
 ```{r}
-# There are actually some georgia sites listed under SC, so add these back. They won't show up otherwise.
-
+soil_survey_out <- get_soil_survey("GA", coords_df)
+full_data_soil_ga <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "GA") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_ga, "data/gSSURGO_GA.csv")
 ```
 
 ## Get New York Data
 
 ```{r}
-
+soil_survey_out <- get_soil_survey("NY", coords_df)
+full_data_soil_ny <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "NY") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_ny, "data/gSSURGO_NY.csv")
 ```
 
 ## Get New Jersey Data
 
 ```{r}
-
+soil_survey_out <- get_soil_survey("NJ", coords_df)
+full_data_soil_nj <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "NJ") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_nj, "data/gSSURGO_NJ.csv")
 ```
 
 ## Get Minnesota Data
 
 ```{r}
-
+soil_survey_out <- get_soil_survey("MN", coords_df)
+full_data_soil_mn <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "MN") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_mn, "data/gSSURGO_MN.csv")
 ```
 
 ## Get Tennessee Data
 
 ```{r}
-
+soil_survey_out <- get_soil_survey("TN", coords_df)
+full_data_soil_tn <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "TN") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_tn, "data/gSSURGO_TN.csv")
 ```
 
 ## Get North Dakota Data
 
 ```{r}
-
+soil_survey_out <- get_soil_survey("ND", coords_df)
+full_data_soil_nd <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "ND") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_nd, "data/gSSURGO_ND.csv")
 ```
 
 ## Get Oklahoma Data
 
 ```{r}
-
+soil_survey_out <- get_soil_survey("OK", coords_df)
+full_data_soil_ok <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "OK") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_ok, "data/gSSURGO_OK.csv")
 ```
 
 ## Get Washington Data
 
 ```{r}
+soil_survey_out <- get_soil_survey("WA", coords_df)
+full_data_soil_wa <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "WA") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_wa, "data/gSSURGO_WA.csv")
+```
 
+## Get Pennsylvania Data
+
+```{r}
+soil_survey_out <- get_soil_survey("PA", coords_df)
+full_data_soil_pa <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "PA") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_pa, "data/gSSURGO_PA.csv")
 ```
 
 ## Get Arizona Data
 
 ```{r}
-
+soil_survey_out <- get_soil_survey("AZ", coords_df)
+full_data_soil_az <-
+  dplyr::left_join(
+    full_data,
+    dplyr::distinct(soil_survey_out),
+    by = c("lat", "lon", "state", "site_name")
+  ) %>%
+  filter(state == "AZ") %>%
+  filter(public_ok == TRUE)
+readr::write_csv(full_data_soil_az, "data/gSSURGO_AZ.csv")
 ```
 
 # Alternative data (FAO)
