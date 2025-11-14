@@ -1,5 +1,5 @@
 ---
-title: "Get Soil Properties"
+title: "Get Soil Properties - NRCS gSSURGO"
 author: "Ava Hoffman"
 date: "2025-11-03"
 ---
