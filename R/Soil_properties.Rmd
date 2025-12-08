@@ -406,7 +406,7 @@ readr::write_csv(full_data_soil_az, "data/gSSURGO_AZ.csv")
 
 The following code helps find Soil Organic Carbon associated with each set of GPS coordinates.
 
-Data are derived from the The Global Soil Organic Carbon Map v1.5 (GSOC), a product of GloSIS (Global Soil Information System) organization that is part of the Food and Agriculture Organization of the United Nations (FAO).
+Data are derived from the The Global Soil Organic Carbon (GSOC) Map v1.5 (GSOC), a product of GloSIS (Global Soil Information System) organization that is part of the Food and Agriculture Organization of the United Nations (FAO).
 
 This data is from version 1.5, published in 2018.
 
@@ -415,4 +415,41 @@ Metadata/report can be found here: https://openknowledge.fao.org/server/api/core
 Data can be downloaded here: https://data.apps.fao.org/catalog//iso/7730e747-eb73-49c9-bfe6-84ebae718743 
 
 Spatial scale is at 1km resolution and depth is 0-30cm. In the USA, SOC analysis method is primarily dry combustion and is derived from Natural Resource Conservation Service, US Department of Agriculture.
+
+Sampling period: 1950-2015 
+SOC analysis method: multiple methods over time - primarily dry combustion 
+BD analysis method: Bulk density measured on undisturbed clods coated in saran (KSSL, 2014)
+units: tonnes/hectare
+
+```{r}
+# Set up function to extract data
+get_FAO_GSOC <- function(latlon, tif_file) {
+  file_dir <- paste0("../large_files/", tif_file)
+  
+  r <- terra::rast(file_dir)
+  the_crs <- terra::crs(r)
+  
+  # Confirm data is formatted correctly
+  if (is.data.frame(latlon)) {
+    # Confirm column names for terra
+    if ("lat" %in% colnames(latlon) &
+        "lon" %in% colnames(latlon)) {
+      vals <- data.frame(lon = latlon$lon, lat = latlon$lat)
+      vals_terra <- terra::vect(vals, crs = "+proj=longlat", keepgeom = T)
+      extracted_vals <- terra::extract(r, terra::project(vals_terra, the_crs))
+      out <- cbind(vals, extracted_vals[, 2])
+      colnames(out)[3] <- colnames(extracted_vals[2])
+      return(out)
+    }
+  }
+}
+```
+
+Extract data
+
+```{r}
+GSOC_lat_lon <- full_data %>% select(lat, lon)
+GSOC <- get_FAO_GSOC(GSOC_lat_lon, "GSOCmap1.5.0.tif")
+readr::write_csv(GSOC, "data/FAO_GSOC.csv")
+```
 
