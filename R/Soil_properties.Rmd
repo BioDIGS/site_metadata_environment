@@ -456,6 +456,25 @@ readr::write_csv(GSOC, "data/FAO_GSOC.csv")
 pH, salinity, gravel/clay content, oxygen, toxicity, water availability
 
 ```{r}
+oxygen <- get_coord_vals(fao_lat_lon, "oxygen_sq4.tif")
+salt <- get_coord_vals(fao_lat_lon, "salt_sq5.tif") %>% distinct()
+nutrient <- get_coord_vals(fao_lat_lon, "nutrient_avail_sq1.tif") %>% distinct()
+clay <- get_coord_vals(fao_lat_lon, "T_CLAY.tif") %>% distinct()
+gravel <- get_coord_vals(fao_lat_lon, "T_GRAVEL.tif") %>% distinct()
+sand <- get_coord_vals(fao_lat_lon, "T_SAND.tif") %>% distinct()
+fao_ph <- get_coord_vals(fao_lat_lon, "T_PH_H2O.tif") %>% distinct()
+awc <- get_coord_vals(fao_lat_lon, "AWC_CLASS.tif") %>% distinct()
 
+bound_fao_data <- 
+  oxygen %>% 
+  left_join(salt) %>% 
+  left_join(nutrient) %>% 
+  left_join(clay) %>% 
+  left_join(gravel) %>% 
+  left_join(sand) %>% 
+  left_join(fao_ph) %>% 
+  left_join(awc)
+
+readr::write_csv(bound_fao_data, "data/FAO_soil_char.csv")
 ```
 
