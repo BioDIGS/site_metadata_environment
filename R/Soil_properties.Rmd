@@ -404,7 +404,7 @@ readr::write_csv(full_data_soil_az, "data/gSSURGO_AZ.csv")
 
 # Alternative data (FAO)
 
-The following code helps find Soil Organic Carbon associated with each set of GPS coordinates.
+The following code helps find **Soil Organic Carbon** associated with each set of GPS coordinates.
 
 Data are derived from the The Global Soil Organic Carbon (GSOC) Map v1.5 (GSOC), a product of GloSIS (Global Soil Information System) organization that is part of the Food and Agriculture Organization of the United Nations (FAO).
 
@@ -419,11 +419,11 @@ Spatial scale is at 1km resolution and depth is 0-30cm. In the USA, SOC analysis
 Sampling period: 1950-2015 
 SOC analysis method: multiple methods over time - primarily dry combustion 
 BD analysis method: Bulk density measured on undisturbed clods coated in saran (KSSL, 2014)
-units: tonnes/hectare
+units: **tonnes/hectare**
 
 ```{r}
 # Set up function to extract data
-get_FAO_GSOC <- function(latlon, tif_file) {
+get_coord_vals <- function(latlon, tif_file) {
   file_dir <- paste0("../large_files/", tif_file)
   
   r <- terra::rast(file_dir)
@@ -445,11 +445,11 @@ get_FAO_GSOC <- function(latlon, tif_file) {
 }
 ```
 
-Extract data
+Extract SOC data:
 
 ```{r}
 GSOC_lat_lon <- full_data %>% select(lat, lon)
-GSOC <- get_FAO_GSOC(GSOC_lat_lon, "GSOCmap1.5.0.tif")
+GSOC <- get_coord_vals(GSOC_lat_lon, "GSOCmap1.5.0.tif")
 readr::write_csv(GSOC, "data/FAO_GSOC.csv")
 ```
 
