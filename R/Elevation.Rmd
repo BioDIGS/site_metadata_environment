@@ -54,6 +54,7 @@ get_coord_vals <- function(latlon, tif_file) {
 ```{r}
 elev_lat_lon <- full_data %>% select(lat, lon)
 elev <- get_coord_vals(elev_lat_lon, "GMTED2010_15n015_00625deg.nc")
+elev <- elev %>% mutate(elevation = case_when(is.na(lat) ~ NA, TRUE ~ elevation))
 readr::write_csv(elev, "data/elevation.csv")
 ```
 
