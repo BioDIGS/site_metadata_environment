@@ -448,8 +448,14 @@ get_coord_vals <- function(latlon, tif_file) {
 Extract SOC data:
 
 ```{r}
-GSOC_lat_lon <- full_data %>% select(lat, lon)
-GSOC <- get_coord_vals(GSOC_lat_lon, "GSOCmap1.5.0.tif")
+fao_lat_lon <- full_data %>% select(lat, lon)
+GSOC <- get_coord_vals(fao_lat_lon, "GSOCmap1.5.0.tif")
 readr::write_csv(GSOC, "data/FAO_GSOC.csv")
+```
+
+pH, salinity, gravel/clay content, oxygen, toxicity, water availability
+
+```{r}
+
 ```
 
