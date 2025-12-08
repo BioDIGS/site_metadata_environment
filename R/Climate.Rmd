@@ -1,0 +1,22 @@
+---
+title: "Get Climate Properties"
+author: "Ava Hoffman"
+date: "2025-12-08"
+---
+
+```{r}
+library(tidyverse) # %>% and other functions
+```
+---
+
+```{r}
+snapshot <- "BioDIGS_sites_20251111.csv"
+github_stem <- "https://raw.githubusercontent.com/FredHutch/GDSCNsoilsites/refs/heads/main/data/snapshots/"
+
+full_data <-
+  read.csv(paste0(github_stem, snapshot))
+
+sample_data <-
+  read.csv(paste0(github_stem, snapshot)) %>% distinct(site_id, sample_id, collection_date)
+```
+

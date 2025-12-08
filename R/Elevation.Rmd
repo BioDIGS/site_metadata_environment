@@ -1,0 +1,59 @@
+---
+title: "Get Elevation"
+author: "Ava Hoffman"
+date: "2025-12-08"
+---
+
+```{r}
+library(tidyverse) # %>% and other functions
+```
+---
+
+Elevation in meters. Elevation data sets at different resolutions have been compiled from the 15 arc-second resolution GMTED2010 global digital elevation model, which was aggregated into one file (adding data over Greenland and the Southpole from the 90 arc-second dataset) by the team assembling the datasets needed for the TROPOMI data processing. More informhttps://www.temis.nl/data/gmted2010/.
+
+This is the highest resolution available from the site above (0.0625 degrees).
+
+# Load Coordinates
+
+```{r}
+snapshot <- "BioDIGS_sites_20251111.csv"
+github_stem <- "https://raw.githubusercontent.com/FredHutch/GDSCNsoilsites/refs/heads/main/data/snapshots/"
+
+full_data <-
+  read.csv(paste0(github_stem, snapshot))
+
+full_data <- tidyr::separate(full_data, gps, into = c("lat", "lon"), sep = ", ")
+full_data$lat <- as.numeric(full_data$lat)
+full_data$lon <- as.numeric(full_data$lon)
+```
+
+```{r}
+# Set up function to extract data
+get_coord_vals <- function(latlon, tif_file) {
+  file_dir <- paste0("../large_files/", tif_file)
+  
+  r <- terra::rast(file_dir)
+  the_crs <- terra::crs(r)
+  
+  # Confirm data is formatted correctly
+  if (is.data.frame(latlon)) {
+    # Confirm column names for terra
+    if ("lat" %in% colnames(latlon) &
+        "lon" %in% colnames(latlon)) {
+      vals <- data.frame(lon = latlon$lon, lat = latlon$lat)
+      vals_terra <- terra::vect(vals, crs = "+proj=longlat", keepgeom = T)
+      extracted_vals <- terra::extract(r, terra::project(vals_terra, the_crs))
+      out <- cbind(vals, extracted_vals[, 2])
+      colnames(out)[3] <- colnames(extracted_vals[2])
+      return(out)
+    }
+  }
+}
+```
+
+```{r}
+elev_lat_lon <- full_data %>% select(lat, lon)
+elev <- get_coord_vals(elev_lat_lon, "GMTED2010_15n015_00625deg.nc")
+readr::write_csv(elev, "data/elevation.csv")
+```
+

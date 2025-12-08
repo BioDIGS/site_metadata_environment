@@ -1,5 +1,5 @@
 ---
-title: "Get Soil Properties - NRCS gSSURGO"
+title: "Get Soil Properties - NRCS gSSURGO and FAO"
 author: "Ava Hoffman"
 date: "2025-11-03"
 ---
@@ -477,4 +477,3 @@ bound_fao_data <-
 
 readr::write_csv(bound_fao_data, "data/FAO_soil_char.csv")
 ```
-
