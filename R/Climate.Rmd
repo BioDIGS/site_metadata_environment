@@ -16,16 +16,15 @@ The CRU TS v. 4.09 is from: https://crudata.uea.ac.uk/cru/data/hrg/ (version 4.0
 Read in weather data - avg precip, vapor pressure (humidity), cloud cover, air temperature
 Create code to take data for nearest day of collection (some day in 2023)
 
-vapor pressure (hPa)- vap: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/vap/
+vapor pressure (hPa) - vap: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/vap/
 precipication (mm/month) - pre: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/pre/
 cloud cover (percent) - cld: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/cld/
 mean near-surface temperature (Celcius) - tmp: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/tmp/
-tmp
 tmx
 tmn
-Diurnal Temperature Range - dtr
+Diurnal Temperature Range - dtr: 
 wet
-frs
+Ground frost frequency (days) - frs: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/frs/
 pet
 
 
@@ -221,4 +220,21 @@ tmp_out <- pmap_dfr(
   )
 )
 write_csv(tmp_out, "data/cru_tmp.csv")
+```
+
+Ground frost frequency:
+
+```{r}
+frs_dat <- get_cru_dat(file_dir = "cru_ts/cru_ts4.09.2021.2024.frs.dat.nc", var_ = "frs")
+frs_out <- pmap_dfr(
+  soil_dates,
+  ~ get_closest_point(
+    labels = data.frame(site_id = ..1, sample_id = ..2),
+    latlon = data.frame(lat = ..4, lon = ..5),
+    date_ = ..3,
+    cru_dat = frs_dat,
+    var_ = "frs"
+  )
+)
+write_csv(frs_out, "data/cru_frs.csv")
 ```
