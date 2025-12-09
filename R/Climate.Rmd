@@ -16,16 +16,14 @@ The CRU TS v. 4.09 is from: https://crudata.uea.ac.uk/cru/data/hrg/ (version 4.0
 Read in weather data - avg precip, vapor pressure (humidity), cloud cover, air temperature
 Create code to take data for nearest day of collection (some day in 2023)
 
-vapor pressure (hPa) - vap: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/vap/
-precipication (mm/month) - pre: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/pre/
-cloud cover (percent) - cld: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/cld/
-mean near-surface temperature (Celcius) - tmp: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/tmp/
-tmx
-tmn
+Vapor pressure (hPa) - vap: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/vap/
+Precipication (mm/month) - pre: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/pre/
+Cloud cover (percent) - cld: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/cld/
+Mean near-surface temperature (Celcius) - tmp: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/tmp/
 Diurnal Temperature Range (Celcius) - dtr: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/dtr/
-wet
+Wet day frequency (days) - wet: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/wet/
 Ground frost frequency (days) - frs: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/frs/
-pet
+potential evapotranspiration (mm/day) - pet: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/pet/
 
 
 # Get the climate data for the soil sites
@@ -254,4 +252,38 @@ dtr_out <- pmap_dfr(
   )
 )
 write_csv(dtr_out, "data/cru_dtr.csv")
+```
+
+Potential Evapotranspiration:
+
+```{r}
+pet_dat <- get_cru_dat(file_dir = "cru_ts/cru_ts4.09.2021.2024.pet.dat.nc", var_ = "pet")
+pet_out <- pmap_dfr(
+  soil_dates,
+  ~ get_closest_point(
+    labels = data.frame(site_id = ..1, sample_id = ..2),
+    latlon = data.frame(lat = ..4, lon = ..5),
+    date_ = ..3,
+    cru_dat = pet_dat,
+    var_ = "pet"
+  )
+)
+write_csv(pet_out, "data/cru_pet.csv")
+```
+
+Number of wet days:
+
+```{r}
+wet_dat <- get_cru_dat(file_dir = "cru_ts/cru_ts4.09.2021.2024.wet.dat.nc", var_ = "wet")
+wet_out <- pmap_dfr(
+  soil_dates,
+  ~ get_closest_point(
+    labels = data.frame(site_id = ..1, sample_id = ..2),
+    latlon = data.frame(lat = ..4, lon = ..5),
+    date_ = ..3,
+    cru_dat = wet_dat,
+    var_ = "wet"
+  )
+)
+write_csv(wet_out, "data/cru_wet.csv")
 ```
