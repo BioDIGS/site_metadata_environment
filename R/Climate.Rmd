@@ -33,8 +33,10 @@ github_stem <- "https://raw.githubusercontent.com/FredHutch/GDSCNsoilsites/refs/
 
 # Get soil data
 snapshot <- "BioDIGS_soil_20251111.csv"
-soil_data <- 
-  read.csv(paste0(github_stem, snapshot)) %>% distinct(site_id, sample_id, collection_date)
+# soil_data <- 
+#   read.csv(paste0(github_stem, snapshot)) %>% distinct(site_id, sample_id, collection_date)
+soil_data <-
+  read.csv("BioDIGS Sample Data and Kit Request MASTER - ALL_SAMPLES - SOIL SAMPLES.csv") %>% distinct(site_id, sample_id, collection_date)
 ```
 
 Prepare data to extract climate information from external data
@@ -42,7 +44,8 @@ Prepare data to extract climate information from external data
 ```{r}
 # Read these in to get GPS coordinates
 snapshot <- "BioDIGS_sites_20251111.csv"
-sites_data <- read.csv(paste0(github_stem, snapshot)) %>% select(site_id, gps)
+# sites_data <- read.csv(paste0(github_stem, snapshot)) %>% select(site_id, gps)
+sites_data <- read.csv("BioDIGS Sample Data and Kit Request MASTER - ALL_SAMPLES - SITE DATA.csv") %>% select(site_id, gps)
 
 soil_dates <- 
   soil_data %>% 
@@ -102,6 +105,8 @@ get_closest_point <- function(labels, latlon, date_, cru_dat, var_) {
     if ("lat" %in% colnames(latlon) &
         "lon" %in% colnames(latlon)) {
       # If any lat/lon are NA, return dummy data
+      # TODO: since 2025 data is not available, would be nice to filter out 2025 sampling dates and set them to NA.
+      # It will automatically go to December 2024 which is the most recent, but not always correct.
       if (is.na(latlon$lat) | is.na(latlon$lon)) {
         # Create NA data
         dummy_df <- data.frame(
@@ -132,7 +137,7 @@ get_closest_point <- function(labels, latlon, date_, cru_dat, var_) {
           latlon_dist %>%
           filter(lldist == min(lldist), timediff == min(timediff)) %>%
           dplyr::select(lon, lat, time, the_var)
-        var_final <- cbind(labels, latlon, date_, var_final)
+        var_final <- cbind(labels, latlon, date_, var_final)[1,] # Take first row if ties
         colnames(var_final) <- c(
           "site_id",
           "sample_id",
@@ -144,8 +149,7 @@ get_closest_point <- function(labels, latlon, date_, cru_dat, var_) {
           "time",
           var_
         )
-        return(var_final
-        )
+        return(var_final)
       }
     }
   }
@@ -186,7 +190,7 @@ pre_out <- pmap_dfr(
 write_csv(pre_out, "data/cru_pre.csv")
 ```
 
-Precipitation:
+Cloud cover:
 
 ```{r}
 cld_dat <- get_cru_dat(file_dir = "cru_ts/cru_ts4.09.2021.2024.cld.dat.nc", var_ = "cld")
