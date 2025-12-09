@@ -22,7 +22,7 @@ cloud cover (percent) - cld: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/
 mean near-surface temperature (Celcius) - tmp: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/tmp/
 tmx
 tmn
-Diurnal Temperature Range - dtr: 
+Diurnal Temperature Range (Celcius) - dtr: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/dtr/
 wet
 Ground frost frequency (days) - frs: https://crudata.uea.ac.uk/cru/data/hrg/cru_ts_4.09/cruts.2503051245.v4.09/frs/
 pet
@@ -237,4 +237,21 @@ frs_out <- pmap_dfr(
   )
 )
 write_csv(frs_out, "data/cru_frs.csv")
+```
+
+diurnal temperature range:
+
+```{r}
+dtr_dat <- get_cru_dat(file_dir = "cru_ts/cru_ts4.09.2021.2024.dtr.dat.nc", var_ = "dtr")
+dtr_out <- pmap_dfr(
+  soil_dates,
+  ~ get_closest_point(
+    labels = data.frame(site_id = ..1, sample_id = ..2),
+    latlon = data.frame(lat = ..4, lon = ..5),
+    date_ = ..3,
+    cru_dat = dtr_dat,
+    var_ = "dtr"
+  )
+)
+write_csv(dtr_out, "data/cru_dtr.csv")
 ```
