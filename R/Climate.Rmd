@@ -6,17 +6,179 @@ date: "2025-12-08"
 
 ```{r}
 library(tidyverse) # %>% and other functions
+library(terra)
 ```
 ---
 
+The CRU TS is from: https://crudata.uea.ac.uk/cru/data/hrg/ (version 4.08) and has a paper here: https://www.nature.com/articles/s41597-020-0453-3
+
+Read in weather data - avg precip, vapor pressure (humidity), cloud cover, air temperature
+Create code to take data for nearest day of collection (some day in 2023)
+
+# Get the climate data for the soil sites
+
 ```{r}
-snapshot <- "BioDIGS_sites_20251111.csv"
 github_stem <- "https://raw.githubusercontent.com/FredHutch/GDSCNsoilsites/refs/heads/main/data/snapshots/"
 
-full_data <-
-  read.csv(paste0(github_stem, snapshot))
-
-sample_data <-
+# Get soil data
+snapshot <- "BioDIGS_soil_20251111.csv"
+soil_data <- 
   read.csv(paste0(github_stem, snapshot)) %>% distinct(site_id, sample_id, collection_date)
+```
+
+Prepare data to extract climate information from external data
+
+```{r}
+# Read these in to get GPS coordinates
+snapshot <- "BioDIGS_sites_20251111.csv"
+sites_data <- read.csv(paste0(github_stem, snapshot)) %>% select(site_id, gps)
+
+soil_dates <- 
+  soil_data %>% 
+  left_join(sites_data) %>% 
+  tidyr::separate(gps, into = c("lat", "lon"), sep = ", ") %>% 
+  mutate(across(c(lat, lon), as.numeric)) %>% 
+  mutate(collection_date = lubridate::mdy(collection_date))
+str(soil_dates)
+```
+
+```{r}
+# Set up function to extract data
+get_coord_vals <- function(latlon, tif_file) {
+  file_dir <- paste0("../large_files/", tif_file)
+  
+  r <- terra::rast(file_dir)
+  the_crs <- terra::crs(r)
+  
+  # Confirm data is formatted correctly
+  if (is.data.frame(latlon)) {
+    # Confirm column names for terra
+    if ("lat" %in% colnames(latlon) &
+        "lon" %in% colnames(latlon)) {
+      vals <- data.frame(lon = latlon$lon, lat = latlon$lat)
+      vals_terra <- terra::vect(vals, crs = "+proj=longlat", keepgeom = T)
+      extracted_vals <- terra::extract(r, terra::project(vals_terra, the_crs))
+      
+      
+      out <- cbind(vals, extracted_vals[, 2])
+      colnames(out)[3] <- colnames(extracted_vals[2])
+      return(out)
+    }
+  }
+}
+```
+
+```{r}
+elev_lat_lon <- soil_dates %>% select(lat, lon)
+elev <- get_coord_vals(elev_lat_lon, "cru_ts/cru_ts4.08.2021.2023.vap.dat.nc")
+elev <- elev %>% mutate(elevation = case_when(is.na(lat) ~ NA, TRUE ~ elevation))
+readr::write_csv(elev, "data/elevation.csv")
+```
+
+```{r}
+library(tidyverse) # Will need lubridate, dplyr
+library(ncdf4)
+```
+
+
+```{r}
+get_cru_dat <- function(file_dir, var_) {
+  # Read in data - note that you can view metadata when running the object in console
+  nc_dat <- ncdf4::nc_open(paste0("../large_files/", file_dir))
+  
+  # Get spatiotemporal variables
+  lat <- ncvar_get(nc_dat, "lat")
+  lon <- ncvar_get(nc_dat, "lon")
+  time <- as_date(ncvar_get(nc_dat, "time"), origin = "1900-1-1")
+  
+  # Get a subset of lat, lon, time to
+  lat_subset <- as.vector(lat[lat < 51 &
+                                lat > 23]) # Limit to roughly the USA
+  lon_subset <- as.vector(lon[lon < -66 &
+                                lon > -127]) # Limit to roughly the USA
+  time_subset <- as_date(as.vector(time[time > as_date("2023-04-01")])) # Limit to roughly the sampling times
+  
+  # Get variable of interest
+  the_var <- ncvar_get(nc_dat, var_)
+  
+  # Create full grid, flatten to data frame
+  st_df <- as.matrix(expand.grid(lon = lon, lat = lat, time = time)) # Takes some time
+  st_df_var <-
+    data.frame(st_df, the_var = as.vector(the_var)) %>%
+    mutate(lon = as.numeric(lon),
+           lat = as.numeric(lat),
+           time = as_date(time))
+  
+  # Subset by region/time, remove NAs
+  st_df_var_sub <-
+    st_df_var %>%
+    dplyr::filter(lat %in% lat_subset, lon %in% lon_subset, time %in% time_subset) %>%
+    na.omit()
+  
+  return(st_df_var_sub)
+}
+
+
+get_closest_point <- function(latlon, date_, cru_dat, var_) {
+  # Confirm data is formatted correctly
+  if (is.data.frame(latlon)) {
+    # Confirm column names for terra
+    if ("lat" %in% colnames(latlon) &
+        "lon" %in% colnames(latlon)) {
+      # If any lat/lon are NA, return dummy data
+      if (is.na(latlon$lat) | is.na(latlon$lon)) {
+        dummy_df <- data.frame(
+          lon = lon,
+          lat = lat,
+          collection_date = date_,
+          lon_cru = NA,
+          lat_cru = NA,
+          time = NA,
+          the_var = NA
+        )
+        colnames(dummy_df)[7] <- var_
+        return(dummy_df)
+      } else {
+        # Convert to terra object
+        vals_terra <- vect(latlon, crs = "+proj=longlat +datum=WGS84")
+        cru_dat_terra <- vect(cru_dat[, 1:2], crs = "+proj=longlat +datum=WGS84")
+        latlon_dist <- cbind(cru_dat, lldist = distance(cru_dat_terra, vals_terra)) # Geospatial distance
+        latlon_dist$timediff <- abs(as_date(latlon_dist$time) - as_date(date_)) # absolute value of date difference
+        
+        # Filter for minimum distance
+        var_final <-
+          latlon_dist %>%
+          filter(lldist == min(lldist), timediff == min(timediff)) %>%
+          dplyr::select(lon, lat, time, the_var)
+        var_final <- cbind(latlon, date_, var_final)
+        colnames(var_final) <- c("lon",
+                                 "lat",
+                                 "collection_date",
+                                 "lon_cru",
+                                 "lat_cru",
+                                 "time",
+                                 var_)
+        return(var_final)
+      }
+    }
+  }
+}
+
+cru_dat <- get_cru_dat(file_dir = "cru_ts/cru_ts4.08.2021.2023.vap.dat.nc", var_ = "vap")
+
+results <- pmap_dfr(
+  soil_dates,
+  ~ get_closest_point( data.frame(lon = ..4, lat = ..5), ..3, cru_dat, var_ = "vap")
+)
+results
+
+get_closest_point(soil_dates[1,4:5], soil_dates[1,3], cru_dat, var_ = "vap")
+
+latlon <- soil_dates[1,4:5]
+date_ <- soil_dates[1,3]
+
+var_lat_lon_matched$timediff <- abs(as_date(var_lat_lon_matched$time) - as_date(soil_dates[1,3])) # absolute value of date difference
+var_final <- var_lat_lon_matched[var_lat_lon_matched$timediff == min(var_lat_lon_matched$timediff),]
+var_final <- var_final %>% select(lon, lat, time, vap)
 ```
 
