@@ -29,24 +29,44 @@ potential evapotranspiration (mm/day) - pet: https://crudata.uea.ac.uk/cru/data/
 # Get the climate data for the soil sites
 
 ```{r}
-github_stem <- "https://raw.githubusercontent.com/FredHutch/GDSCNsoilsites/refs/heads/main/data/snapshots/"
+# Choose one: data_source <- c("local", "github", "google")
+data_source <- "google"
+is_2025_available <- FALSE
+```
 
-# Get soil data
-snapshot <- "BioDIGS_soil_20251111.csv"
-# soil_data <- 
-#   read.csv(paste0(github_stem, snapshot)) %>% distinct(site_id, sample_id, collection_date)
-soil_data <-
-  read.csv("BioDIGS Sample Data and Kit Request MASTER - ALL_SAMPLES - SOIL SAMPLES.csv") %>% distinct(site_id, sample_id, collection_date)
+```{r}
+# Get GPS points and collection dates
+# Locate data according to param above
+if (data_source == "local") {
+  # Look in pwd for specific snapshots
+  soil_data <- read_csv("BioDIGS_soil_20250929.csv") %>% distinct(site_id, sample_id, collection_date)
+  sites_data <- read.csv("BioDIGS Sample Data and Kit Request MASTER - ALL_SAMPLES - SITE DATA.csv") %>% select(site_id, gps)
+} else if (data_source == "google") {
+  # All from Google (need access)
+  googlesheets4::gs4_auth(email = T)
+  sites_data <- googlesheets4::read_sheet(
+    "https://docs.google.com/spreadsheets/d/1Mbuym6GgG2B3VFCbjhYy4vaPCx1_tIOBlBOlT1iIHZE/edit?gid=476949426#gid=476949426",
+    sheet = "SITE DATA"
+  ) %>% select(site_id, gps)
+  soil_data <- googlesheets4::read_sheet(
+    "https://docs.google.com/spreadsheets/d/1Mbuym6GgG2B3VFCbjhYy4vaPCx1_tIOBlBOlT1iIHZE/edit?gid=476949426#gid=476949426",
+    sheet = "SOIL SAMPLES",
+    col_types = "c"
+  ) %>% distinct(site_id, sample_id, collection_date)
+} else {
+  # Public snapshot on github if not downloaded
+  sites_data <- read_csv(
+    "https://github.com/FredHutch/GDSCNsoilsites/raw/refs/heads/main/data/snapshots/BioDIGS_sites_20260310.csv"
+  ) %>% select(site_id, gps)
+  soil_data <- read_csv(
+    "https://github.com/FredHutch/GDSCNsoilsites/raw/refs/heads/main/data/snapshots/BioDIGS_soil_20260310.csv"
+  ) %>% distinct(site_id, sample_id, collection_date)
+}
 ```
 
 Prepare data to extract climate information from external data
 
 ```{r}
-# Read these in to get GPS coordinates
-snapshot <- "BioDIGS_sites_20251111.csv"
-# sites_data <- read.csv(paste0(github_stem, snapshot)) %>% select(site_id, gps)
-sites_data <- read.csv("BioDIGS Sample Data and Kit Request MASTER - ALL_SAMPLES - SITE DATA.csv") %>% select(site_id, gps)
-
 soil_dates <- 
   soil_data %>% 
   left_join(sites_data) %>% 
@@ -54,6 +74,19 @@ soil_dates <-
   mutate(across(c(lat, lon), as.numeric)) %>% 
   mutate(collection_date = lubridate::mdy(collection_date))
 str(soil_dates)
+```
+
+**The following is a correction for 2025 dates not available. Will put them a year behind (e.g. sampling on 2025-09-01 becomes 2024-09-01, because that's likely to be most realistic climate-wise.**
+
+```{r}
+if(!is_2025_available){
+ soil_dates <- 
+  soil_dates %>% 
+  mutate(collection_date = case_when(
+    collection_date > as.Date("2025-01-01") ~ collection_date - period(years = 1), # Subtract a year from the sampling date
+    TRUE ~ collection_date
+  )) 
+}
 ```
 
 Create some functions to find the appropriate data points
